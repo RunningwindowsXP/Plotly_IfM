@@ -3,12 +3,14 @@ from dash import Dash, html, dcc, callback, Output, Input
 import dash_ag_grid as dag
 import pandas as pd
 import plotly.express as px
-import pyodbc
+import pyodbc, os
+
+db = os.path.join(os.path.dirname(__file__), "Beispiel-Datenbank.accdb")
 
 # Incorporate data
 conn_str = (
     r'DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};'
-    r'DBQ=C:\Users\koep\Downloads\Beispiel-Datenbank.accdb;'
+    rf'DBQ={db}'
 )
 conn = pyodbc.connect(conn_str)
 
@@ -30,8 +32,11 @@ app = Dash(external_stylesheets=external_stylesheets)
 
 # App layout
 app.layout = [
-    html.Div(className='row', children='My First App with Data, Graph, and Controls',
+    html.Div(className='row', children='Beispiel Dashboard des IfM Bonn',
              style={'textAlign': 'center', 'color': 'blue', 'fontSize': 30}),
+
+    html.Div(className='row', children='von: Jonathan Maier, Johannes Koep',
+             style={'textAlign': 'center', 'color': 'black', 'fontSize': 12}),
 
     html.Div(className='row', children=[
         dcc.RadioItems(options=['Wirtschaftszweig', 'Umsatzklasse', 'Beschäftigtenklasse'],
@@ -106,4 +111,6 @@ def update_graph(col_chosen):
 
 # Run the app
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0",
+            port=8050,
+            debug=True)
