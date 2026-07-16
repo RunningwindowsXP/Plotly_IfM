@@ -1,0 +1,4 @@
+dash
+dash_ag_grid
+pandas
+plotly

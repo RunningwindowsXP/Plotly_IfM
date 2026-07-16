@@ -1,23 +1,15 @@
-# Import packages
 from dash import Dash, html, dcc, callback, Output, Input
 import dash_ag_grid as dag
 import pandas as pd
 import plotly.express as px
-import pyodbc, os
+import sqlite3
 
-db = os.path.join(os.path.dirname(__file__), "Beispiel-Datenbank.accdb")
-
-# Incorporate data
-conn_str = (
-    r'DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};'
-    rf'DBQ={db}'
-)
-conn = pyodbc.connect(conn_str)
+conn = sqlite3.connect("daten.db")
 
 df = pd.read_sql("SELECT * FROM Wirtschaftzweige", conn)
 conn.close()
-# Use a label column so the legend shows real Umsatzklasse names.
-# Ersetze die Bezeichnungen hier mit den echten Namen aus deiner Datenbank.
+
+
 umsatzklasse_label_map = {
     1: '1 - bis 2 Mio. Euro',
     2: '2 - 2 bis 10 Mio. Euro',
@@ -25,12 +17,12 @@ umsatzklasse_label_map = {
     4: '4 - 25 bis 50 Mio. Euro',
     5: '5 - über 50 Mio. Euro'
 }
-df['Umsatzklassen'] = df['Umsatzklasse'].map(umsatzklasse_label_map).fillna(df['Umsatzklasse'].astype(str))
-# Initialize the app - incorporate css
+
+df['Umsatzklasse'] = df['Umsatzklasse'].map(umsatzklasse_label_map).fillna(df['Umsatzklasse'].astype(str))
+
 external_stylesheets = ['stylesheet.css']
 app = Dash(external_stylesheets=external_stylesheets)
 
-# App layout
 app.layout = [
     html.Div(className='row', children='Beispiel Dashboard des IfM Bonn',
              style={'textAlign': 'center', 'color': 'blue', 'fontSize': 30}),
@@ -66,7 +58,6 @@ app.layout = [
     ])
 ]
 
-# Add controls to build the interaction
 @callback(
     Output(component_id='histo-chart-final', component_property='figure'),
     Input(component_id='my-radio-buttons-final', component_property='value')
@@ -109,8 +100,7 @@ def update_graph(col_chosen):
     )
     return fig
 
-# Run the app
 if __name__ == '__main__':
     app.run(host="0.0.0.0",
-            port=8050,
+            port=8000,
             debug=True)
