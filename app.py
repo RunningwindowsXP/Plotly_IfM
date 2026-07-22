@@ -60,7 +60,7 @@ app.layout = [
                     'Beschäftigtenklasse'
                 ],
                 value='Wirtschaftszweig',
-                id='my-radio-buttons-final'
+                id='y_axis'
             ),
             html.Div(className='spacer'),
             html.H5("Jahr"),
@@ -70,13 +70,32 @@ app.layout = [
                 step=1,
                 value=2024,
                 id='year_slider'
+            ),
+            html.Div(className='spacer'),
+            dcc.RadioItems(
+                options=[
+                    'Jahre kumulieren',
+                    'Einzelnes Jahr',
+                ],
+                value='Jahre kumulieren',
+                id='kumulieren_auswahl'
+            ),
+            html.Div(className='spacer'),
+            html.H5("Färbung"),
+            dcc.RadioItems(
+                options=[
+                    'Umsatzklasse',
+                    'Jahr',
+                ],
+                value='Umsatzklasse',
+                id='faerbung'
             )
         ]),
 
         html.Div(className='nine columns', children=[
             dcc.Graph(
                 figure={},
-                id='histo-chart-final',
+                id='Wirtschaftszweige_Histogramm',
                 style={'height': '450px'},
                 config={'displayModeBar': False}
             )
@@ -102,26 +121,36 @@ app.layout = [
 
 
 @callback(
-    Output(component_id='histo-chart-final', component_property='figure'),
-    Input(component_id='my-radio-buttons-final', component_property='value'),
-    Input(component_id='year_slider', component_property='value')
+    Output(component_id='Wirtschaftszweige_Histogramm', component_property='figure'),
+    Input(component_id='y_axis', component_property='value'),
+    Input(component_id='year_slider', component_property='value'),
+    Input(component_id='kumulieren_auswahl', component_property='value'), 
+    Input(component_id='faerbung', component_property='value')
 )
-def update_graph(col_chosen, year):
+def update_graph(col_chosen, year, kumulieren, faerbung):
     conn = sqlite3.connect("daten_neu.db")
 
-    df = pd.read_sql("SELECT * FROM Wirtschaftszweige WHERE Jahr = ?", conn, params=(year,))
+    if kumulieren == "Einzelnes Jahr":
+        df = pd.read_sql("SELECT * FROM Wirtschaftszweige WHERE Jahr = ?", conn, params=(year,))
+    elif kumulieren == "Jahre kumulieren":
+        df = pd.read_sql("SELECT * FROM Wirtschaftszweige WHERE Jahr <= ?", conn, params=(year,))
     conn.close()
 
-    df['Umsatzklasse'] = df['Umsatzklasse'].map(umsatzklasse_label_map).fillna(df['Umsatzklasse'].astype(str))
+    df['Umsatzklasse'] = df['Umsatzklasse'].map(umsatzklasse_label_map).fillna(df['Umsatzklasse'].astype(str))   
     
+    if faerbung == "Umsatzklasse":
+        palette = ["#FFA200", "#DF8200", '#BF6200', '#9F4200', '#7F2200']
+    elif faerbung == "Jahr":
+        palette = ["#00FF1A", "#5AFFAE", "#66F0FF"]
+
     fig = px.histogram(
         df,
         x=col_chosen,
         y='Umsatz in 1000€',
-        color='Umsatzklasse',
+        color=faerbung,
         histfunc='sum',
         title=f'Summe von {col_chosen} nach Umsatz in 1000€',
-        color_discrete_sequence=["#FFA200", "#DF8200", '#BF6200', '#9F4200', '#7F2200']
+        color_discrete_sequence=palette
     )
     fig.update_layout(
         yaxis_title=f'Summe des Umsatzes in 1000€ nach {col_chosen}',
