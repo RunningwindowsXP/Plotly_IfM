@@ -20,46 +20,81 @@ umsatzklasse_label_map = {
 
 df['Umsatzklasse'] = df['Umsatzklasse'].map(umsatzklasse_label_map).fillna(df['Umsatzklasse'].astype(str))
 
-external_stylesheets = ['stylesheet.css']
-app = Dash(external_stylesheets=external_stylesheets)
+
+app = Dash()
 
 app.layout = [
-    html.Div(className='row', children='Beispiel Dashboard des IfM Bonn',
-             style={'textAlign': 'center', 'color': 'blue', 'fontSize': 30}),
 
-    html.Div(className='row', children='von: Jonathan Maier, Johannes Koep',
-             style={'textAlign': 'center', 'color': 'black', 'fontSize': 12}),
+    html.Div(
+        className='row',
+        children='Beispiel Dashboard des IfM Bonn',
+        style={
+            'textAlign': 'center',
+            'color': 'blue',
+            'fontSize': 30
+        }
+    ),
 
+    html.Div(
+        className='row',
+        children='von: Jonathan Maier, Johannes Koep',
+        style={
+            'textAlign': 'center',
+            'color': 'black',
+            'fontSize': 12
+        }
+    ),
+
+    html.Div(className='spacer'),
+
+
+    # Parameter + Histogramm
     html.Div(className='row', children=[
-        dcc.RadioItems(options=['Wirtschaftszweig', 'Umsatzklasse', 'Beschäftigtenklasse'],
-                       value='Wirtschaftszweig',
-                       inline=True,
-                       id='my-radio-buttons-final')
-    ]),
 
-    html.Div([
-        dcc.RadioItems(options=['2023', '2024'],
-                       value='2024',
-                       inline=True,
-                       id='my-radio-buttons-year')
-    ]),
+        html.Div(className='three columns', children=[
+            html.H5("Y-Achse"),
+            dcc.RadioItems(
+                options=[
+                    'Wirtschaftszweig',
+                    'Umsatzklasse',
+                    'Beschäftigtenklasse'
+                ],
+                value='Wirtschaftszweig',
+                id='my-radio-buttons-final'
+            ),
+            html.Div(className='spacer'),
+            html.H5("Jahr"),
+            dcc.Slider(
+                min=2022,
+                max=2024,
+                step=1,
+                value=2024,
+                id='year_slider'
+            )
+        ]),
 
-    html.Div(className='row', children=[
-        html.Div(className='twelve columns', children=[
+        html.Div(className='nine columns', children=[
             dcc.Graph(
                 figure={},
                 id='histo-chart-final',
-                style={'height': '700px'},
+                style={'height': '450px'},
                 config={'displayModeBar': False}
             )
         ])
     ]),
 
+    html.Div(className='spacer'),
+
+    # Tabelle separat unten
     html.Div(className='row', children=[
+
         html.Div(className='twelve columns', children=[
             dag.AgGrid(
                 rowData=df.to_dict('records'),
-                columnDefs=[{"field": i} for i in df.columns]
+                columnDefs=[
+                    {"field": i}
+                    for i in df.columns
+                ]
             )
         ])
     ])
@@ -69,7 +104,7 @@ app.layout = [
 @callback(
     Output(component_id='histo-chart-final', component_property='figure'),
     Input(component_id='my-radio-buttons-final', component_property='value'),
-    Input(component_id='my-radio-buttons-year', component_property='value')
+    Input(component_id='year_slider', component_property='value')
 )
 def update_graph(col_chosen, year):
     conn = sqlite3.connect("daten_neu.db")
