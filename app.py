@@ -4,9 +4,9 @@ import pandas as pd
 import plotly.express as px
 import sqlite3
 
-conn = sqlite3.connect("daten.db")
+conn = sqlite3.connect("daten_neu.db")
 
-df = pd.read_sql("SELECT * FROM Wirtschaftzweige", conn)
+df = pd.read_sql("SELECT * FROM Wirtschaftszweige", conn)
 conn.close()
 
 
@@ -37,6 +37,13 @@ app.layout = [
                        id='my-radio-buttons-final')
     ]),
 
+    html.Div([
+        dcc.RadioItems(options=['2023', '2024'],
+                       value='2024',
+                       inline=True,
+                       id='my-radio-buttons-year')
+    ]),
+
     html.Div(className='row', children=[
         html.Div(className='twelve columns', children=[
             dcc.Graph(
@@ -58,16 +65,25 @@ app.layout = [
     ])
 ]
 
+
 @callback(
     Output(component_id='histo-chart-final', component_property='figure'),
-    Input(component_id='my-radio-buttons-final', component_property='value')
+    Input(component_id='my-radio-buttons-final', component_property='value'),
+    Input(component_id='my-radio-buttons-year', component_property='value')
 )
-def update_graph(col_chosen):
+def update_graph(col_chosen, year):
+    conn = sqlite3.connect("daten_neu.db")
+
+    df = pd.read_sql("SELECT * FROM Wirtschaftszweige WHERE Jahr = ?", conn, params=(year,))
+    conn.close()
+
+    df['Umsatzklasse'] = df['Umsatzklasse'].map(umsatzklasse_label_map).fillna(df['Umsatzklasse'].astype(str))
+    
     fig = px.histogram(
         df,
         x=col_chosen,
         y='Umsatz in 1000€',
-        color='Umsatzklassen',
+        color='Umsatzklasse',
         histfunc='sum',
         title=f'Summe von {col_chosen} nach Umsatz in 1000€',
         color_discrete_sequence=["#FFA200", "#DF8200", '#BF6200', '#9F4200', '#7F2200']
@@ -102,5 +118,5 @@ def update_graph(col_chosen):
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0",
-            port=8000,
+            port=20002,
             debug=True)

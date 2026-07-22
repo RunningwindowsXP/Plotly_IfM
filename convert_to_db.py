@@ -1,19 +1,19 @@
 import openpyxl
-import pyodbc
+import sqlite3
 import os
+from openpyxl.utils import get_column_letter
 
 # ---------------------------------------------
 # Pfade
 # ---------------------------------------------
 excel_path = input("Pfad zur Excel-Datei: ").strip('"')
-access_path = input("Pfad zur Access-Datei (.accdb): ").strip('"')
-jahr = input("Auf welches Jahr beziehen sich die Daten?")
+jahr = input("Auf welches Jahr beziehen sich die Daten? ")
+
+# Spaltenverschiebung
+offset = int(input("Spaltenverschiebung eingeben (Basisspalte: H; 0 = keine, 1 = eine nach rechts, -1 = eine nach links): "))
 
 if not os.path.exists(excel_path):
     raise FileNotFoundError(excel_path)
-
-if not os.path.exists(access_path):
-    raise FileNotFoundError(access_path)
 
 # ---------------------------------------------
 # Excel öffnen
@@ -21,40 +21,73 @@ if not os.path.exists(access_path):
 wb = openpyxl.load_workbook(excel_path, data_only=True)
 
 # ---------------------------------------------
-# Access verbinden
+# DB verbinden
 # ---------------------------------------------
-conn = pyodbc.connect(
-    rf"DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={access_path};"
-)
+conn = sqlite3.connect("daten_neu.db")
 cur = conn.cursor()
 
-# Tabelle leeren (optional)
-cur.execute("DELETE FROM Wirtschaftszweige")
+cur.execute(
+    """CREATE TABLE IF NOT EXISTS Wirtschaftszweige (
+        ID INTEGER PRIMARY KEY,
+        Jahr INTEGER,
+        Wirtschaftszweig TEXT,
+        Umsatzklasse INTEGER,
+        Beschäftigtenklasse INTEGER,
+        Anzahl INTEGER,
+        [Abhängig Beschäftigte] INTEGER,
+        [SV-Beschäftigte] INTEGER,
+        [Geringfügig Beschäftigte] INTEGER,
+        [Umsatz in 1000€] INTEGER
+    )"""
+)
+
 conn.commit()
 
-id_nr = 0
+cur.execute(
+    """SELECT MAX(ID)
+    FROM Wirtschaftszweige"""
+)
 
+result = cur.fetchone()[0]
+id_nr = 1 if result is None else result + 1
+
+
+# ---------------------------------------------
+# Excel einlesen
+# ---------------------------------------------
 for ws in wb.worksheets[2:]:
 
     wirtschaftszweig = ws.title
 
-    bereiche = [
-        "H9:L13",      # Anzahl
-        "M9:Q13",      # Abhängig Beschäftigte
-        "R9:V13",      # SV-Beschäftigte
-        "W9:AA13",     # Geringfügig Beschäftigte
-        "AB9:AF13"     # Umsatz in 1000€
+    # Startspalten der 5 Blöcke
+    start_spalten = [
+        8,   # H
+        13,  # M
+        18,  # R
+        23,  # W
+        28   # AB
     ]
 
-    for umsatzklasse, rng in enumerate(bereiche, start=1):
+    for umsatzklasse, start_spalte in enumerate(start_spalten, start=1):
 
         block = []
 
-        for row in ws[rng]:
-            block.append([
-                None if c.value == "." else c.value
-                for c in row
-            ])
+        # Offset berücksichtigen
+        start_spalte += offset
+
+        for row in range(9, 14):  # Zeilen 9-13
+            zeile = []
+
+            for col in range(start_spalte, start_spalte + 5):
+                wert = ws.cell(row=row, column=col).value
+
+                if wert == ".":
+                    wert = None
+
+                zeile.append(wert)
+
+            block.append(zeile)
+
 
         # Jede Zeile des Blocks wird ein Datensatz
         for beschaeftigtenklasse in range(5):
@@ -93,7 +126,8 @@ for ws in wb.worksheets[2:]:
 
             id_nr += 1
 
+
 conn.commit()
 conn.close()
 
-print(f"Fertig! {id_nr} Datensätze importiert.")
+print(f"Fertig! {id_nr - 1} Datensätze importiert.")
